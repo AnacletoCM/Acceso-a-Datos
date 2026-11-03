@@ -8,9 +8,17 @@ public class IngestionProperties {
     private Path baseDir = Path.of(System.getProperty("os.name").startsWith("Windows")
             ? "C:/workspace/store_data" : "/workspace/store_data");
     private boolean demoEnabled = true;
+    private boolean explicitBaseDir;
+    private boolean localFallback;
 
     public Path getBaseDir() { return baseDir.toAbsolutePath().normalize(); }
-    public void setBaseDir(Path baseDir) { this.baseDir = baseDir; }
+    public void setBaseDir(Path baseDir) { this.baseDir = baseDir; this.explicitBaseDir = true; }
+    boolean useLocalFallback() {
+        if (explicitBaseDir || localFallback) return false;
+        baseDir = Path.of("store_data");
+        localFallback = true;
+        return true;
+    }
     public boolean isDemoEnabled() { return demoEnabled; }
     public void setDemoEnabled(boolean demoEnabled) { this.demoEnabled = demoEnabled; }
     public Path input() { return getBaseDir().resolve("input"); }

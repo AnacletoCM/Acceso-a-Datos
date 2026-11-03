@@ -1,0 +1,42 @@
+name: Verificación RA1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'actividades/ra1_act1/**'
+      - '.github/workflows/ra1.yml'
+      - '.github/scripts/check_ra1.py'
+  pull_request:
+    paths:
+      - 'actividades/ra1_act1/**'
+      - '.github/workflows/ra1.yml'
+      - '.github/scripts/check_ra1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    name: Java 21 · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: actividades/ra1_act1/pom.xml
+      - name: Compilar el proyecto
+        run: mvn -B -ntp -f actividades/ra1_act1/pom.xml clean verify
+      - name: Comprobar arranque e ingestión
+        run: python .github/scripts/check_ra1.py

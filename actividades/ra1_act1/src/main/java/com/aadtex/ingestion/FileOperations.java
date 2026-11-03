@@ -2,16 +2,38 @@ package com.aadtex.ingestion;
 
 import java.io.*;
 import java.nio.file.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class FileOperations {
+    private static final Logger log = LoggerFactory.getLogger(FileOperations.class);
     static final int BUFFER_SIZE = 4096;
     static final long MAX_FILE_BYTES = 16L * 1024 * 1024;
     private FileOperations() { }
 
     static void initialize(IngestionProperties p) throws IOException {
+        Path requested = p.getBaseDir();
+        try {
+            createDirectories(p);
+        } catch (IOException | SecurityException original) {
+            if (!p.useLocalFallback()) throw original;
+            try {
+                createDirectories(p);
+            } catch (IOException | SecurityException fallback) {
+                fallback.addSuppressed(original);
+                throw fallback;
+            }
+            log.warn("No se puede usar {}. Directorio de datos: {}", requested, p.getBaseDir());
+        }
+    }
+
+    private static void createDirectories(IngestionProperties p) throws IOException {
         for (Path dir : new Path[]{p.input(), p.processed(), p.signatures(), p.error(), p.bucket(),
                 p.getBaseDir().resolve("keys")}) {
             if (!Files.exists(dir)) Files.createDirectories(dir);
+            if (!Files.isDirectory(dir)) throw new NotDirectoryException(dir.toString());
+            Path probe = Files.createTempFile(dir, ".aadtex-write-", ".tmp");
+            Files.delete(probe);
         }
     }
 
