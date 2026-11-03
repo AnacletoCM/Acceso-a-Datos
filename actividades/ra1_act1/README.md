@@ -61,4 +61,8 @@ Para repetir los ejemplos, utilizar un directorio de datos nuevo. Para procesar 
 mvn clean verify
 ```
 
+## Entrega
+
+[ra1_act1.zip](ra1_act1.zip?raw=true)
+
 [Volver a actividades](../README.md)
