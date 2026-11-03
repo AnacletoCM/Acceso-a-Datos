@@ -1,0 +1,6 @@
+/mvnw text eol=lf
+*.cmd text eol=crlf
+*.enc binary
+*.zip binary
+*.key -text
+*.csv text eol=lf
