@@ -1,5 +1,7 @@
-package com.ra1.ptp.dgt.traffic_radar;
+package com.ra1.ptp.dgt.traffic_radar.repository;
 
+import com.ra1.ptp.dgt.traffic_radar.model.TrafficReport;
+import com.ra1.ptp.dgt.traffic_radar.model.Vehicle;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -19,28 +21,21 @@ import java.util.List;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Repository;
 
-@Service
-public class TrafficIngestionService {
+@Repository
+public class FileTrafficRepository implements TrafficRepository {
 
     private final Path basePath;
 
-    public TrafficIngestionService(
+    public FileTrafficRepository(
             @Value("${traffic.data.path:c:/workspace/traffic_data/}") String basePath) {
         this.basePath = Path.of(basePath);
     }
 
-    public void processTrafficData() throws IOException {
-        Files.createDirectories(basePath.resolve("keys"));
-        Files.createDirectories(basePath.resolve("input"));
-        Path processed = basePath.resolve("output/processed");
-        Path error = basePath.resolve("output/error");
-        Path payload = basePath.resolve("output/payload");
-        Files.createDirectories(processed);
-        Files.createDirectories(error);
-        Files.createDirectories(payload);
-
+    @Override
+    public List<Vehicle> findAll() throws IOException {
+        createDirectories();
         List<Path> files;
         try (var paths = Files.list(basePath.resolve("input"))) {
             files = paths.filter(Files::isRegularFile)
@@ -52,8 +47,7 @@ public class TrafficIngestionService {
         for (Path file : files) {
             String name = file.getFileName().toString();
             if (Files.size(file) == 0) {
-                moveFile(file, error.resolve(name));
-                System.out.println("[ALERTA DGT] Fichero corrupto detectado y aislado: " + name);
+                isolateFile(file);
                 continue;
             }
             if (!name.endsWith(".csv") && !name.endsWith(".enc")) {
@@ -76,20 +70,39 @@ public class TrafficIngestionService {
                     }
                 }
             } catch (IOException | GeneralSecurityException | IllegalArgumentException e) {
-                moveFile(file, error.resolve(name));
-                System.out.println("[ALERTA DGT] Fichero corrupto detectado y aislado: " + name);
+                isolateFile(file);
                 System.err.println(e.getMessage());
                 continue;
             }
 
-            moveFile(file, processed.resolve(name));
+            moveFile(file, basePath.resolve("output/processed").resolve(name));
             vehicles.addAll(batch);
             System.out.println("[DGT] Fichero procesado: " + name);
         }
+        return vehicles;
+    }
 
-        Path destination = payload.resolve("dgt_dispatch_payload.json");
-        Files.writeString(destination, createPayload(vehicles), StandardCharsets.UTF_8);
+    @Override
+    public void saveReport(TrafficReport report) throws IOException {
+        Path directory = basePath.resolve("output/payload");
+        Files.createDirectories(directory);
+        Path destination = directory.resolve("dgt_dispatch_payload.json");
+        Files.writeString(destination, createPayload(report), StandardCharsets.UTF_8);
         System.out.println("[DGT] Payload generado: " + destination);
+    }
+
+    private void createDirectories() throws IOException {
+        Files.createDirectories(basePath.resolve("keys"));
+        Files.createDirectories(basePath.resolve("input"));
+        Files.createDirectories(basePath.resolve("output/processed"));
+        Files.createDirectories(basePath.resolve("output/error"));
+        Files.createDirectories(basePath.resolve("output/payload"));
+    }
+
+    private void isolateFile(Path file) throws IOException {
+        String name = file.getFileName().toString();
+        moveFile(file, basePath.resolve("output/error").resolve(name));
+        System.out.println("[ALERTA DGT] Fichero corrupto detectado y aislado: " + name);
     }
 
     private List<Vehicle> readVehicles(InputStream input) throws IOException {
@@ -130,26 +143,16 @@ public class TrafficIngestionService {
         }
     }
 
-    private String createPayload(List<Vehicle> vehicles) {
-        List<Vehicle> infractions = new ArrayList<>();
-        double maxSpeed = 0.0;
-        BigDecimal totalFines = BigDecimal.ZERO;
-        for (Vehicle vehicle : vehicles) {
-            maxSpeed = Math.max(maxSpeed, vehicle.speed());
-            totalFines = totalFines.add(vehicle.fine());
-            if (vehicle.speed() > vehicle.limit()) {
-                infractions.add(vehicle);
-            }
-        }
-
+    private String createPayload(TrafficReport report) {
+        List<Vehicle> infractions = report.infractions();
         StringBuilder json = new StringBuilder();
         json.append("{\n");
-        json.append("  \"radarId\": \"RADAR-M30-KM12\",\n");
-        json.append("  \"status\": \"READY_FOR_DISPATCH\",\n");
-        json.append("  \"totalVehicles\": ").append(vehicles.size()).append(",\n");
-        json.append("  \"totalInfractions\": ").append(infractions.size()).append(",\n");
-        json.append("  \"maxSpeed\": ").append(maxSpeed).append(",\n");
-        json.append("  \"totalFines\": ").append(money(totalFines)).append(",\n");
+        json.append("  \"radarId\": \"").append(escape(report.radarId())).append("\",\n");
+        json.append("  \"status\": \"").append(escape(report.status())).append("\",\n");
+        json.append("  \"totalVehicles\": ").append(report.totalVehicles()).append(",\n");
+        json.append("  \"totalInfractions\": ").append(report.totalInfractions()).append(",\n");
+        json.append("  \"maxSpeed\": ").append(report.maxSpeed()).append(",\n");
+        json.append("  \"totalFines\": ").append(money(report.totalFines())).append(",\n");
         json.append("  \"infractions\": [");
         for (int i = 0; i < infractions.size(); i++) {
             Vehicle vehicle = infractions.get(i);
@@ -190,8 +193,5 @@ public class TrafficIngestionService {
             }
         }
         return escaped.toString();
-    }
-
-    private record Vehicle(String plate, String model, double speed, double limit, BigDecimal fine) {
     }
 }

@@ -1,5 +1,7 @@
 package com.ra1.ptp.dgt.traffic_radar;
 
+import com.ra1.ptp.dgt.traffic_radar.repository.FileTrafficRepository;
+import com.ra1.ptp.dgt.traffic_radar.service.TrafficIngestionService;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.charset.StandardCharsets;
@@ -20,7 +22,7 @@ class TrafficRadarApplicationTests {
         Path base = directory.resolve("workspace/traffic_data");
         assertFalse(Files.exists(base));
 
-        new TrafficIngestionService(base.toString()).processTrafficData();
+        service(base).processTrafficData();
 
         for (String folder : new String[] {
                 "keys", "input", "output/processed", "output/error", "output/payload"}) {
@@ -51,7 +53,7 @@ class TrafficRadarApplicationTests {
         Files.write(directory.resolve("input/radar_movil_guardia_civil.enc"), encrypted);
         Files.createFile(directory.resolve("input/radar_corrupto.csv"));
 
-        new TrafficIngestionService(directory.toString()).processTrafficData();
+        service(directory).processTrafficData();
 
         assertEquals("""
                 {
@@ -106,7 +108,7 @@ class TrafficRadarApplicationTests {
                 registro incorrecto
                 """, StandardCharsets.UTF_8);
 
-        new TrafficIngestionService(directory.toString()).processTrafficData();
+        service(directory).processTrafficData();
 
         assertTrue(Files.exists(directory.resolve("output/error/radar_m30.csv")));
         String json = Files.readString(directory.resolve("output/payload/dgt_dispatch_payload.json"));
@@ -129,7 +131,7 @@ class TrafficRadarApplicationTests {
         Files.write(directory.resolve("input/radar_m30.csv"), invalid);
         Files.write(directory.resolve("input/radar_movil_guardia_civil.enc"), new byte[] {1, 2, 3});
 
-        new TrafficIngestionService(directory.toString()).processTrafficData();
+        service(directory).processTrafficData();
 
         assertArrayEquals(invalid, Files.readAllBytes(directory.resolve("output/error/radar_m30.csv")));
         assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(
@@ -147,7 +149,7 @@ class TrafficRadarApplicationTests {
                 2222-DEF,BYD 唐,90.0,90,0.00
                 """, StandardCharsets.UTF_8);
 
-        new TrafficIngestionService(directory.toString()).processTrafficData();
+        service(directory).processTrafficData();
 
         String json = Files.readString(directory.resolve("output/payload/dgt_dispatch_payload.json"));
         assertTrue(json.contains("\"totalVehicles\": 2"));
@@ -156,5 +158,9 @@ class TrafficRadarApplicationTests {
         assertTrue(json.contains("\"totalFines\": 10.01"));
         assertTrue(json.contains("1111-ABC"));
         assertFalse(json.contains("2222-DEF"));
+    }
+
+    private TrafficIngestionService service(Path base) {
+        return new TrafficIngestionService(new FileTrafficRepository(base.toString()));
     }
 }

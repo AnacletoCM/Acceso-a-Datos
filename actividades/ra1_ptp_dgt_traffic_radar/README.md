@@ -6,6 +6,16 @@ Lee los partes de un radar fijo y un radar móvil, descifra el lote confidencial
 
 [Enunciado](docs/enunciado.md) · [Código](src/main/java/com/ra1/ptp/dgt/traffic_radar/) · [ZIP de entrega](entrega/ra1_ptp_app_dgt_traffic_radar.zip)
 
+## Capas
+
+| Paquete | Responsabilidad |
+|---|---|
+| `repository` | Acceso a ficheros, lectura CSV, descifrado AES, traslado de entradas y escritura del JSON |
+| `service` | Cálculo de vehículos, infracciones, velocidad máxima y sanciones |
+| `model` | Datos de los vehículos y del informe |
+
+`TrafficIngestionService` recibe un `TrafficRepository` por constructor. `FileTrafficRepository` implementa el acceso a disco; el servicio trabaja con los datos que recibe.
+
 ## Ejecución
 
 Requiere Java 21 y Maven 3.6.3 o superior. Utiliza Spring Boot 4.1.2.
@@ -71,7 +81,7 @@ La carpeta `traffic_data/` contiene las entradas originales y un [JSON de ejempl
 mvn clean verify
 ```
 
-Las cinco pruebas cubren la creación de carpetas, el lote completo, los registros defectuosos, los errores de UTF-8 y cifrado, y el cálculo de infracciones.
+Las pruebas cubren la creación de carpetas, el lote completo, los registros defectuosos, los errores de UTF-8 y cifrado, y la lógica de negocio sin acceso a disco.
 
 ## Entrega
 

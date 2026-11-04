@@ -1,5 +1,6 @@
 package com.ra1.ptp.dgt.traffic_radar;
 
+import com.ra1.ptp.dgt.traffic_radar.service.TrafficIngestionService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
