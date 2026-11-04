@@ -1,4 +1,7 @@
-package com.aadtex.ingestion;
+package com.aadtex.ingestion.repository;
+
+import com.aadtex.ingestion.config.IngestionProperties;
+import com.aadtex.ingestion.io.LimitedInputStream;
 
 import java.io.*;
 import java.nio.file.*;
@@ -8,7 +11,7 @@ import org.slf4j.LoggerFactory;
 final class FileOperations {
     private static final Logger log = LoggerFactory.getLogger(FileOperations.class);
     static final int BUFFER_SIZE = 4096;
-    static final long MAX_FILE_BYTES = 16L * 1024 * 1024;
+    static final long MAX_FILE_BYTES = LimitedInputStream.MAX_BYTES;
     private FileOperations() { }
 
     static void initialize(IngestionProperties p) throws IOException {
@@ -47,8 +50,10 @@ final class FileOperations {
 
     // La imagen se valida por su cabecera y se copia sin cargarla entera en RAM.
     static void copyJpeg(InputStream source, Path target) throws IOException {
+        boolean created = false;
         try (var in = new BufferedInputStream(new NonClosingInputStream(source), BUFFER_SIZE);
              var out = new BufferedOutputStream(Files.newOutputStream(target, StandardOpenOption.CREATE_NEW), BUFFER_SIZE)) {
+            created = true;
             byte[] buffer = new byte[4096];
             int count = in.readNBytes(buffer, 0, 3);
             if (count != 3 || (buffer[0] & 255) != 255 || (buffer[1] & 255) != 216 || (buffer[2] & 255) != 255)
@@ -63,6 +68,12 @@ final class FileOperations {
                 out.write(buffer, 0, count);
             }
             if (previous != 255 || last != 217) throw new IOException("JPEG truncado: falta FF D9");
+        } catch (IOException | RuntimeException failure) {
+            if (created) {
+                try { Files.deleteIfExists(target); }
+                catch (IOException cleanup) { failure.addSuppressed(cleanup); }
+            }
+            throw failure;
         }
     }
 
@@ -71,18 +82,4 @@ final class FileOperations {
         @Override public void close() { /* El propietario del ZIP cierra el contenedor. */ }
     }
 
-    static class LimitedInputStream extends FilterInputStream {
-        private long remaining;
-        LimitedInputStream(InputStream in, long limit) { super(in); remaining = limit; }
-        @Override public int read() throws IOException {
-            int n = in.read();
-            if (n != -1 && --remaining < 0) throw new IOException("Límite de lectura excedido");
-            return n;
-        }
-        @Override public int read(byte[] b, int off, int len) throws IOException {
-            int n = in.read(b, off, (int) Math.min(len, remaining + 1));
-            if (n > 0 && (remaining -= n) < 0) throw new IOException("Límite de lectura excedido");
-            return n;
-        }
-    }
 }

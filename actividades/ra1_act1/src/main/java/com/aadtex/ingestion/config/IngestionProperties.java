@@ -1,4 +1,4 @@
-package com.aadtex.ingestion;
+package com.aadtex.ingestion.config;
 
 import java.nio.file.Path;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -13,7 +13,7 @@ public class IngestionProperties {
 
     public Path getBaseDir() { return baseDir.toAbsolutePath().normalize(); }
     public void setBaseDir(Path baseDir) { this.baseDir = baseDir; this.explicitBaseDir = true; }
-    boolean useLocalFallback() {
+    public boolean useLocalFallback() {
         if (explicitBaseDir || localFallback) return false;
         baseDir = Path.of("store_data");
         localFallback = true;

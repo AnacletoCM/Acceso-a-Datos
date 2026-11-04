@@ -1,4 +1,6 @@
-package com.aadtex.ingestion;
+package com.aadtex.ingestion.scheduler;
+
+import com.aadtex.ingestion.service.StoreIngestionService;
 
 import java.io.IOException;
 import org.slf4j.*;

@@ -2,7 +2,21 @@
 
 RA1 · Actividad 1 · Manejo de ficheros
 
+Repositorio: [AnacletoCM/Acceso-a-Datos](https://github.com/AnacletoCM/Acceso-a-Datos).
+
 Procesa cierres de tiendas en CSV y ZIP, descifra el balance financiero y genera los resúmenes JSON con sus firmas.
+
+## Estructura por capas
+
+| Paquete | Responsabilidad |
+|---|---|
+| `repository` | Acceso a ficheros, lectura de CSV y ZIP, claves, firmas y persistencia de resúmenes |
+| `service` | Validación de ventas y lotes, cálculo de importes, descifrado y coordinación del procesamiento |
+| `model` | Datos de las filas y resúmenes de ventas |
+| `scheduler` y `bootstrap` | Invocación de los servicios al arrancar y cada cinco segundos |
+| `config` e `io` | Configuración y control del tamaño de los flujos |
+
+Los servicios reciben los repositorios por constructor. Las operaciones de lectura y escritura en disco se realizan en `repository`.
 
 ## Ejecución
 
@@ -60,6 +74,8 @@ Para repetir los ejemplos, utilizar un directorio de datos nuevo. Para procesar 
 ```bash
 mvn clean verify
 ```
+
+Las pruebas comprueban los lotes de ejemplo, UTF-8, AES, ZIP, firmas, errores, bloqueos y recuperación ante fallos de escritura.
 
 ## Entrega
 
